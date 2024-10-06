@@ -2,7 +2,6 @@ package org.example;
 
 import java.io.*;
 import java.net.ServerSocket;
-import java.net.Socket;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -35,43 +34,46 @@ public class ConnectionHandler {
         this.httpServer = httpServer;
     }
 
-    public void handleJson() {
+    public void handle() {
         try (var serverSocket = new ServerSocket(httpServer.getTcpPort())) {
             var socket = serverSocket.accept();
             var inputStreamReader = new BufferedReader(new InputStreamReader(socket.getInputStream(), CHARSET));
             var outputStreamWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), CHARSET));
 
-            Path pathJson = Path.of(ClassLoader.getSystemResource(JSON_FILE_NAME).toURI());
-
-            parseRequest(inputStreamReader);
-            writeResponse(outputStreamWriter, pathJson);
+            if(parseRequest(inputStreamReader)) {
+                handleTxt(outputStreamWriter);
+            } else {
+                handleJson(outputStreamWriter);
+            }
         } catch (IOException | URISyntaxException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public void handleTxt() {
-        try (var serverSocket = new ServerSocket(httpServer.getTcpPort())) {
-            var socket = serverSocket.accept();
-            var inputStreamReader = new BufferedReader(new InputStreamReader(socket.getInputStream(), CHARSET));
-            var outputStreamWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), CHARSET));
-
-            Path pathTxt = Path.of(ClassLoader.getSystemResource(TXT_FILE_NAME).toURI());
-
-            parseRequest(inputStreamReader);
-            sendFile(outputStreamWriter, pathTxt);
-        } catch (IOException | URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
+    public void handleJson(BufferedWriter outputStreamWriter) throws URISyntaxException {
+        Path pathJson = Path.of(ClassLoader.getSystemResource(JSON_FILE_NAME).toURI());
+        writeResponse(outputStreamWriter, pathJson);
     }
 
-    private void parseRequest(BufferedReader inputStreamReader) throws IOException {
+    public void handleTxt(BufferedWriter outputStreamWriter) throws URISyntaxException {
+        Path pathTxt = Path.of(ClassLoader.getSystemResource(TXT_FILE_NAME).toURI());
+        sendFile(outputStreamWriter, pathTxt);
+    }
+
+    private boolean parseRequest(BufferedReader inputStreamReader) throws IOException {
+        boolean isDownload = false;
         var request = inputStreamReader.readLine();
 
         while (request != null && !request.isEmpty()) {
+            String[] split = request.split(" ");
+            if (split[1].equals("/txt")) {
+                isDownload = true;
+            }
+
             System.out.println(request);
             request = inputStreamReader.readLine();
         }
+        return isDownload;
     }
 
     private void writeResponse(BufferedWriter outputStreamWriter, Path path) {
