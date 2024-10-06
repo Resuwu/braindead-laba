@@ -7,22 +7,25 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class ConnectionHandler {
     private static final String JSON_FILE_NAME = "payload.json";
     private static final String TXT_FILE_NAME = "file.txt";
     private static final Charset CHARSET = StandardCharsets.US_ASCII;
+    private static final DateTimeFormatter timeFormatter = DateTimeFormatter.RFC_1123_DATE_TIME;
 
     private static final String HTTP_HEADERS_JSON = """
             HTTP/1.1 200 OK
-            Date: Mon, 18 Sep 2023 14:08:55 +0200
+            Date: %s
             HttpServer: Simple Webserver
             Content-Type: application/json
             """;
 
     private static final String HTTP_HEADERS_TXT = """
             HTTP/1.1 200 OK
-            Date: Mon, 18 Sep 2023 14:08:55 +0200
+            Date: %s
             HttpServer: Simple Webserver
             Content-Type: text/plain
             Content-Disposition: attachment; filename="Ya-upal.txt"
@@ -78,7 +81,7 @@ public class ConnectionHandler {
 
     private void writeResponse(BufferedWriter outputStreamWriter, Path path) {
         try {
-            outputStreamWriter.write(HTTP_HEADERS_JSON);
+            outputStreamWriter.write(formatHeader(HTTP_HEADERS_JSON));
             outputStreamWriter.newLine();
             outputStreamWriter.write(Files.readString(path, CHARSET));
             outputStreamWriter.newLine();
@@ -91,7 +94,7 @@ public class ConnectionHandler {
 
     private void sendFile(BufferedWriter outputStreamWriter, Path path) {
         try (InputStream is = Files.newInputStream(path)) {
-            outputStreamWriter.write(HTTP_HEADERS_TXT);
+            outputStreamWriter.write(formatHeader(HTTP_HEADERS_TXT));
             outputStreamWriter.newLine();
 
             int temp = is.read();
@@ -104,5 +107,11 @@ public class ConnectionHandler {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private String formatHeader(String header) {
+        ZonedDateTime now = ZonedDateTime.now();
+        String timestamp = now.format(timeFormatter);
+        return String.format(header, timestamp);
     }
 }
